@@ -1,0 +1,12 @@
+LICENSE.txt
+MANIFEST.in
+README.rst
+mailmerge.py
+setup.cfg
+setup.py
+docx_mailmerge_hxd.egg-info/PKG-INFO
+docx_mailmerge_hxd.egg-info/SOURCES.txt
+docx_mailmerge_hxd.egg-info/dependency_links.txt
+docx_mailmerge_hxd.egg-info/not-zip-safe
+docx_mailmerge_hxd.egg-info/requires.txt
+docx_mailmerge_hxd.egg-info/top_level.txt

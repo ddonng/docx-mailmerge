@@ -1,6 +1,10 @@
 ===============
-docx Mail Merge
+docx Mail Merge Hxd
 ===============
+
+Base on Bouke's Docx-mailmerge(3q):
+1. enable merge_rows all required table, not only the first.
+2. fixed the nested table rows merge bug.
 
 .. image:: https://travis-ci.org/Bouke/docx-mailmerge.png?branch=master
     :alt: Build Status
@@ -8,7 +12,7 @@ docx Mail Merge
 
 .. image:: https://badge.fury.io/py/docx-mailmerge.png
     :alt: PyPI
-    :target: https://pypi.python.org/pypi/docx-mailmerge
+    :target: https://pypi.python.org/pypi/docx-mailmerge-hxd
 
 Performs a Mail Merge on Office Open XML (docx) files. Can be used on any
 system without having to install Microsoft Office Word. Supports Python 2.7,
@@ -20,7 +24,7 @@ Installation
 Installation with ``pip``:
 ::
 
-    $ pip install docx-mailmerge
+    $ pip install docx-mailmerge-hxd
 
 
 Usage
