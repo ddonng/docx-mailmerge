@@ -1,7 +1,9 @@
-===============
+===================
 docx Mail Merge Hxd
-===============
-
+===================
+基于Bouke的 Docx-mailmerge：
+1、merge与merge_rows可以将所有符合的全部替换
+2、基于TNGPS提供的方式，实现图片的替换（title为field名称,descr如果为deletable，没有匹配数据则删除）
 Base on Bouke's Docx-mailmerge(3q):
 1. enable merge_rows all required table, not only the first.
 2. fixed the nested table rows merge bug.
