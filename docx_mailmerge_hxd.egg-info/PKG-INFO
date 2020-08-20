@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: docx-mailmerge-hxd
-Version: 0.6
+Version: 0.6.1
 Summary: Performs a Mail Merge on docx (Microsoft Office Word) files
 Home-page: http://github.com/ddonng/docx-mailmerge
 Author: Bouke Haarsma

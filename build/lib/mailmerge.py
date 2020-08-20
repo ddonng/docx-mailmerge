@@ -71,14 +71,14 @@ class MailMerge(object):
                             continue
                         instr = child.attrib['{%(w)s}instr' % NAMESPACES]
 
-                        # name = self.__parse_instr(instr)
-                        # if name is None:
-                        #     continue
-                        # parent[idx] = Element('MergeField', name=name)
-                        m = r.match(instr)
-                        if m is None:
+                        name = self.__parse_instr(instr)
+                        if name is None:
                             continue
-                        parent[idx] = Element('MergeField', name=m.group(1))
+                        parent[idx] = Element('MergeField', name=name)
+                        # m = r.match(instr)
+                        # if m is None:
+                        #     continue
+                        # parent[idx] = Element('MergeField', name=m.group(1))
 
                 for parent in part.findall('.//{%(w)s}instrText/../..' % NAMESPACES):
                     children = list(parent)
@@ -107,15 +107,15 @@ class MailMerge(object):
                         for instr in instr_elements[1:]:
                             instr.getparent().remove(instr)
 
-                        # name = self.__parse_instr(instr_text)
-                        # if name is None:
-                        #     continue
-
-                        # parent[idx_begin] = Element('MergeField', name=name)
-                        m = r.match(instr_text)
-                        if m is None:
+                        name = self.__parse_instr(instr_text)
+                        if name is None:
                             continue
-                        parent[idx_begin] = Element('MergeField', name=m.group(1))
+
+                        parent[idx_begin] = Element('MergeField', name=name)
+                        # m = r.match(instr_text)
+                        # if m is None:
+                        #     continue
+                        # parent[idx_begin] = Element('MergeField', name=m.group(1))
 
                         # use this so we know *where* to put the replacement
                         instr_elements[0].tag = 'MergeText'
