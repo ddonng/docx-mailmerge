@@ -445,7 +445,12 @@ class MailMerge(object):
             list = []
             for table in part.findall('.//{%(w)s}tbl' % NAMESPACES):
                 for idx, row in enumerate(table):
-                    if row.find('.//MergeField[@name="%s"]' % field) is not None and row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+                    # 下行的写法只能是叶子节点的table
+                    # if row.find('.//MergeField[@name="%s"]' % field) is not None and row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+
+                    # 这种可支持嵌套表格，比如 一行中第一列是  第1行，第二列中又分了两行，原数据与变更后。不过需要指出，第二列中是field了，比如_old_ ，_new_这样直接列出
+                    # 如果嵌套里面还又自嵌套，会把里面的也一样渲染
+                    if row.find('.//MergeField[@name="%s"]' % field) is not None:
                         list.append((table, idx, row))
             if(len(list) > 0):
                 print(len(list))
