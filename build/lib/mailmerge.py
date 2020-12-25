@@ -340,11 +340,13 @@ class MailMerge(object):
             parts = self.parts.values()
 
         for field, replacement in replacements.items():
-            if isinstance(replacement, list):
-                self.merge_rows(field, replacement)
-            else:
-                for part in parts:
-                    self.__merge_field(part, field, replacement)
+            for part in parts:
+                # to support sub rows merge
+                if isinstance(replacement, list):
+                    self.merge_rows(field, replacement,part)
+                else:
+                    for part in parts:
+                        self.__merge_field(part, field, replacement)
 
     def __merge_field(self, part, field, text):
         if field.endswith('_source'):
@@ -398,7 +400,7 @@ class MailMerge(object):
             nodes = []
             # preserve new lines in replacement text
             if text!=0:
-            	text = text or ''  # text might be None
+                text = text or ''  # text might be None
             text_parts = str(text).replace('\r', '').split('\n')
             for i, text_part in enumerate(text_parts):
                 text_node = Element('{%(w)s}t' % NAMESPACES)
@@ -420,14 +422,19 @@ class MailMerge(object):
             else:
                 mf.extend(nodes)
 
-    def merge_rows(self, anchor, rows):
-        list = self.__find_row_anchor(anchor)
-        for eachTable in list:
+    def merge_rows(self, anchor, rows, part=None):
+        if part is not None:
+            parts=[part]
+        else:
+            parts=None
+        lists = self.__find_row_anchor(anchor,parts)
+        for eachTable in lists:
             table, idx, template = eachTable
             if table is not None:
                 if len(rows) > 0:
                     del table[idx]
                     for i, row_data in enumerate(rows):
+
                         row = deepcopy(template)
                         self.merge([row], **row_data)
                         table.insert(idx + i, row)
@@ -439,19 +446,21 @@ class MailMerge(object):
                         parent.remove(table)
 
     def __find_row_anchor(self, field, parts=None):
+        subTableFinding = False
         if not parts:
             parts = self.parts.values()
+        else:
+            subTableFinding = True
         for part in parts:
             list = []
             for table in part.findall('.//{%(w)s}tbl' % NAMESPACES):
                 for idx, row in enumerate(table):
-                    # 下行的写法只能是叶子节点的table
-                    # if row.find('.//MergeField[@name="%s"]' % field) is not None and row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
-
-                    # 这种可支持嵌套表格，比如 一行中第一列是  第1行，第二列中又分了两行，原数据与变更后。不过需要指出，第二列中是field了，比如_old_ ，_new_这样直接列出
-                    # 如果嵌套里面还又自嵌套，会把里面的也一样渲染
-                    if row.find('.//MergeField[@name="%s"]' % field) is not None:
-                        list.append((table, idx, row))
+                    if subTableFinding:
+                        if row.find('.//MergeField[@name="%s"]' % field) is not None and row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+                            list.append((table, idx, row))
+                    else:
+                        if row.find('.//MergeField[@name="%s"]' % field) is not None:
+                            list.append((table, idx, row))
             if(len(list) > 0):
                 print(len(list))
                 return list
