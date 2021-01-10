@@ -5,6 +5,7 @@ from lxml.etree import Element
 from lxml import etree
 from zipfile import ZipFile, ZIP_DEFLATED
 from random import randint
+from PIL import Image
 import shlex
 import mimetypes
 import os.path
@@ -171,10 +172,11 @@ class MailMerge(object):
                 picNode = image.find('.//wp:docPr', namespaces=NAMESPACES)
                 if "descr" not in picNode.attrib.keys() or picNode.attrib['descr'] != 'deletable':
                     embed_node = image.find('.//a:blip', namespaces=NAMESPACES)
-                    embed_attr = embed_node.attrib.keys()[0]
-                    imageId = embed_node.attrib[embed_attr]
-                    if "rId" in imageId:
-                        reservedIdList.append(imageId)
+                    if embed_node is not None:
+                        embed_attr = embed_node.attrib.keys()[0]
+                        imageId = embed_node.attrib[embed_attr]
+                        if "rId" in imageId:
+                            reservedIdList.append(imageId)
         # Id get, all Ids.  then check if has not deletable image exists, then keep write the image to new file
         regStr = r'<[^<]*Id="(rId\d+)"[^<]*Target="([^<]*)"/>'
         r = re.compile(regStr)
@@ -189,7 +191,7 @@ class MailMerge(object):
             for zi in self.zip.filelist:
                 zfname = zi.filename
                 if zi in self.parts:
-                    xml = etree.tostring(self.parts[zi].getroot())
+                    xml = etree.tostring(self.parts[zi].getroot(),encoding='utf-8')
                     # remove delete image's w:drawing xml block from document.xml
                     if zfname == "word/document.xml":
                         docContent = xml.decode('utf8')
@@ -212,7 +214,7 @@ class MailMerge(object):
             # add new images to media folder is we have images merged
             for img_id_extension, img_data in self.media.items():
                 arr = img_id_extension.split(':')
-                output.writestr('media/{}.{}'.format(arr[0], arr[1]), img_data)
+                output.writestr('word/media/{}.{}'.format(arr[0], arr[1]), img_data)
 
     def __reFun(self, obj):
         str = obj.group()
@@ -345,8 +347,7 @@ class MailMerge(object):
                 if isinstance(replacement, list):
                     self.merge_rows(field, replacement,part)
                 else:
-                    for part in parts:
-                        self.__merge_field(part, field, replacement)
+                    self.__merge_field(part, field, replacement)
 
     def __merge_field(self, part, field, text):
         if field.endswith('_source'):
@@ -354,41 +355,72 @@ class MailMerge(object):
                 # 此处检查确认是图片。如果是，读取到text变量。如果不是，删除原有的placeholder图片(save的时候查找删除)
                 mimetype = mimetypes.guess_type(text)[0]
                 if mimetype in ['image/bmp', 'image/jpeg', 'image/png', 'image/gif', 'image/x-icon']:
+                    
+                    # png出现问题，word会提示无法读取的内容，jpg正常。因此，转换
+                    # print(text)
+                    fileList = text.split('.')
+                    extension = fileList[-1]
+                    JPG_extension = "jpg"
+                    JPG_FORMAT_file = "".join(fileList[:-1]) + "." + JPG_extension
+                    
+
+                    # 看是否需要转换
+                    if not os.path.exists(JPG_FORMAT_file):
+                        # print(JPG_FORMAT_file)
+                        im = Image.open(text)
+
+                        if im.mode in ("RGBA", "P"):
+                            x,y = im.size 
+                            try: 
+                              # 使用白色来填充背景 from：www.jb51.net
+                              # (alpha band as paste mask). 
+                              p = Image.new('RGBA', im.size, (255,255,255))
+                              p.paste(im, (0, 0, x, y), im)
+                              im = p.convert("RGB")
+                            except:
+                              pass
+                        im.save(JPG_FORMAT_file)
+
+
                     # 这个时候，text为文件绝对地址
                     img_name = field
                     # inline_img_el = part.find(
-                    #     './/wp:docPr[@title="{}"]/..'.format("IMAGE:" + img_name), namespaces=NAMESPACES)
-                    imglist = part.findall(
-                        './/wp:docPr[@title="{}"]/..'.format("IMAGE:" + img_name), namespaces=NAMESPACES)
+                    #      './/wp:docPr[@title="{}"]/..'.format("IMAGE:" + img_name), namespaces=NAMESPACES)
+                    imglist = part.findall('.//wp:docPr[@title="{}"]/..'.format("IMAGE:" + img_name), namespaces=NAMESPACES)
                     if len(imglist) > 0:
                         for inline_img_el in imglist:
-                            # if inline_img_el:
-                            embed_node = inline_img_el.find('.//a:blip', namespaces=NAMESPACES)
-                            if embed_node is not None:
-                                # generate a random id and add tp media list for later export to media folder in zip file
-                                img_id = 'MMR{}'.format(randint(10000000, 999999999))
-                                with open(text, 'rb') as f:
-                                    content = f.read()
-                                extension = text.split('.')[-1]
-                                self.media[img_id + ':' + extension] = content
-                                # self.media[extension] = extension
-
-                                # add a relationship
-                                last_img_relationship = self.rels.findall(
-                                    '{%(ns)s}Relationship[@Type="%(od)s/image"]' % self.RELS_NAMESPACES)[-1]
-                                new_img_relationship = deepcopy(last_img_relationship)
-                                new_img_relationship.set('Id', img_id)
-                                new_img_relationship.set('Target', '/media/{}.{}'.format(img_id, extension))
-                                self.rels.getroot().append(new_img_relationship)
-
-                                # replace the embed attrib with the new image_id
+                            if inline_img_el is not None:
+                                # print(inline_img_el)
                                 embed_node = inline_img_el.find('.//a:blip', namespaces=NAMESPACES)
-                                embed_attr = embed_node.attrib.keys()[0]
-                                embed_node.attrib[embed_attr] = img_id
-                            # mark as done
-                            inline_img_el.find(
-                                'wp:docPr', namespaces=NAMESPACES).attrib['title'] = 'replaced_image_{}'.format(img_id)
-                            inline_img_el.find('wp:docPr', namespaces=NAMESPACES).attrib['descr'] = ''
+
+                                if embed_node is not None:
+                                        # generate a random id and add tp media list for later export to media folder in zip file
+                                    img_id = 'MMR{}'.format(randint(10000000, 999999999))
+                                    with open(JPG_FORMAT_file, 'rb') as f:
+                                        content = f.read()
+                                    
+                                    self.media[img_id + ':' + JPG_extension] = content
+                                        # self.media[extension] = extension
+
+                                        # add a relationship
+                                    last_img_relationship = self.rels.findall(
+                                            '{%(ns)s}Relationship[@Type="%(od)s/image"]' % self.RELS_NAMESPACES)[-1]
+                                    new_img_relationship = deepcopy(last_img_relationship)
+                                    new_img_relationship.set('Id', img_id)
+                                    new_img_relationship.set('Target', 'media/{}.{}'.format(img_id, JPG_extension))
+                                    self.rels.getroot().append(new_img_relationship)
+
+                                        # replace the embed attrib with the new image_id
+                                    embed_node = inline_img_el.find('.//a:blip', namespaces=NAMESPACES)
+                                    embed_attr = embed_node.attrib.keys()[0]
+                                    embed_node.attrib[embed_attr] = img_id
+                                    # mark as done
+                                inline_img_el.find(
+                                        'wp:docPr', namespaces=NAMESPACES).attrib['title'] = 'replaced_image_{}'.format(img_id)
+                                inline_img_el.find('wp:docPr', namespaces=NAMESPACES).attrib['descr'] = ''
+                                # newId = str(randint(10000000000,99999999999))
+                                # inline_img_el.find('wp:docPr', namespaces=NAMESPACES).attrib['id'] = newId
+                                # inline_img_el.find('.//pic:cNvPr', namespaces=NAMESPACES).attrib['id'] = newId
             return
 
         for mf in part.findall('.//MergeField[@name="%s"]' % field):
@@ -427,7 +459,16 @@ class MailMerge(object):
             parts=[part]
         else:
             parts=None
-        lists = self.__find_row_anchor(anchor,parts)
+
+        notOnlyLeafTable = False
+        for index,item in enumerate(rows):
+            if isinstance(item,dict):
+                for k,v in item.items():
+                    if isinstance(v,list):
+                        notOnlyLeafTable = True
+                        break
+
+        lists = self.__find_row_anchor(anchor,parts,notOnlyLeafTable)
         for eachTable in lists:
             table, idx, template = eachTable
             if table is not None:
@@ -445,25 +486,40 @@ class MailMerge(object):
                         parent = table.getparent()
                         parent.remove(table)
 
-    def __find_row_anchor(self, field, parts=None):
+    def __find_row_anchor(self, field, parts=None,notOnlyLeafTable=False):
         subTableFinding = False
         if not parts:
             parts = self.parts.values()
         else:
             subTableFinding = True
+        # 目前，只支持二级数组的嵌套。
         for part in parts:
-            list = []
+            dlist = []
             for table in part.findall('.//{%(w)s}tbl' % NAMESPACES):
                 for idx, row in enumerate(table):
-                    if subTableFinding:
-                        if row.find('.//MergeField[@name="%s"]' % field) is not None and row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
-                            list.append((table, idx, row))
-                    else:
-                        if row.find('.//MergeField[@name="%s"]' % field) is not None:
-                            list.append((table, idx, row))
-            if(len(list) > 0):
-                print(len(list))
-                return list
+                    if row.find('.//MergeField[@name="%s"]' % field) is not None:
+                        if subTableFinding:
+                            if row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+                                dlist.append((table, idx, row))
+                        else:
+                            if notOnlyLeafTable:
+                                # 取出临界table：再下一层就没有这个field的table
+                                subTables = row.findall('.//{%(w)s}tbl' % NAMESPACES)
+                                
+                                for stable in subTables:
+                                    subTable = (table,idx,row)
+                                    for sidx,srow in enumerate(stable):
+                                        # 如果还有field，就保留
+                                        if srow.find('.//MergeField[@name="%s"]' % field) is not None:
+                                            subTable = (stable,sidx,srow)
+                                if subTable:
+                                    dlist.append(subTable)
+                            else:
+                                if row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+                                    dlist.append((table, idx, row))
+            if(len(dlist) > 0):
+                # print(len(dlist))
+                return dlist
         return []
 
     def __enter__(self):
