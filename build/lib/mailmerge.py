@@ -165,27 +165,27 @@ class MailMerge(object):
         for field in self.get_merge_fields():
             self.merge(**{field: ''})
 
-        reservedIdList = []
-        parts = self.parts.values()
-        for part in parts:
-            for image in part.findall('.//wp:docPr/..', namespaces=NAMESPACES):
-                picNode = image.find('.//wp:docPr', namespaces=NAMESPACES)
-                if "descr" not in picNode.attrib.keys() or picNode.attrib['descr'] != 'deletable':
-                    embed_node = image.find('.//a:blip', namespaces=NAMESPACES)
-                    if embed_node is not None:
-                        embed_attr = embed_node.attrib.keys()[0]
-                        imageId = embed_node.attrib[embed_attr]
-                        if "rId" in imageId:
-                            reservedIdList.append(imageId)
-        # Id get, all Ids.  then check if has not deletable image exists, then keep write the image to new file
-        regStr = r'<[^<]*Id="(rId\d+)"[^<]*Target="([^<]*)"/>'
-        r = re.compile(regStr)
-        with self.zip.open("word/_rels/document.xml.rels") as relFile:
-            content = relFile.read().decode("utf8")
-        res = r.findall(content)
-        # keep rId,target as dict
-        idTarget = dict(res)
-        targetList = [idTarget[rId] for rId in reservedIdList]
+        # reservedIdList = []
+        # parts = self.parts.values()
+        # for part in parts:
+        #     for image in part.findall('.//wp:docPr/..', namespaces=NAMESPACES):
+        #         picNode = image.find('.//wp:docPr', namespaces=NAMESPACES)
+        #         if "descr" not in picNode.attrib.keys() or picNode.attrib['descr'] != 'deletable':
+        #             embed_node = image.find('.//a:blip', namespaces=NAMESPACES)
+        #             if embed_node is not None:
+        #                 embed_attr = embed_node.attrib.keys()[0]
+        #                 imageId = embed_node.attrib[embed_attr]
+        #                 if "rId" in imageId:
+        #                     reservedIdList.append(imageId)
+        # # Id get, all Ids.  then check if has not deletable image exists, then keep write the image to new file
+        # regStr = r'<[^<]*Id="(rId\d+)"[^<]*Target="([^<]*)"/>'
+        # r = re.compile(regStr)
+        # with self.zip.open("word/_rels/document.xml.rels") as relFile:
+        #     content = relFile.read().decode("utf8")
+        # res = r.findall(content)
+        # # keep rId,target as dict
+        # idTarget = dict(res)
+        # targetList = [idTarget[rId] for rId in reservedIdList]
 
         with ZipFile(file, 'w', ZIP_DEFLATED) as output:
             for zi in self.zip.filelist:
@@ -206,11 +206,12 @@ class MailMerge(object):
                     xml = etree.tostring(self.rels.getroot())
                     output.writestr(zi.filename, xml)
                 else:
-                    if zfname.endswith((".bmp", ".png", ".jpeg", ".jpg", ".gif", ".ico")) and zfname.split("word/")[-1] not in targetList:
-                        # not reserved image, no need to write
-                        pass
-                    else:
-                        output.writestr(zi.filename, self.zip.read(zi))
+                    # if zfname.endswith((".bmp", ".png", ".jpeg", ".jpg", ".gif", ".ico")) and zfname.split("word/")[-1] not in targetList:
+                    #     # not reserved image, no need to write
+                    #     pass
+                    # else:
+                    # 由于水印图片，就把所有图片保留，因为那个小占位图片不大3KB
+                    output.writestr(zi.filename, self.zip.read(zi))
             # add new images to media folder is we have images merged
             for img_id_extension, img_data in self.media.items():
                 arr = img_id_extension.split(':')
