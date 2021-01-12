@@ -461,15 +461,15 @@ class MailMerge(object):
         else:
             parts=None
 
-        notOnlyLeafTable = False
-        for index,item in enumerate(rows):
-            if isinstance(item,dict):
-                for k,v in item.items():
-                    if isinstance(v,list):
-                        notOnlyLeafTable = True
-                        break
+        # notOnlyLeafTable = False
+        # for index,item in enumerate(rows):
+        #     if isinstance(item,dict):
+        #         for k,v in item.items():
+        #             if isinstance(v,list):
+        #                 notOnlyLeafTable = True
+        #                 break
 
-        lists = self.__find_row_anchor(anchor,parts,notOnlyLeafTable)
+        lists = self.__find_row_anchor(anchor,parts)
         for eachTable in lists:
             table, idx, template = eachTable
             if table is not None:
@@ -487,7 +487,7 @@ class MailMerge(object):
                         parent = table.getparent()
                         parent.remove(table)
 
-    def __find_row_anchor(self, field, parts=None,notOnlyLeafTable=False):
+    def __find_row_anchor(self, field, parts=None):
         subTableFinding = False
         if not parts:
             parts = self.parts.values()
@@ -503,21 +503,21 @@ class MailMerge(object):
                             if row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
                                 dlist.append((table, idx, row))
                         else:
-                            if notOnlyLeafTable:
+                            # if notOnlyLeafTable:
                                 # 取出临界table：再下一层就没有这个field的table
-                                subTables = row.findall('.//{%(w)s}tbl' % NAMESPACES)
-                                
-                                for stable in subTables:
-                                    subTable = (table,idx,row)
-                                    for sidx,srow in enumerate(stable):
-                                        # 如果还有field，就保留
-                                        if srow.find('.//MergeField[@name="%s"]' % field) is not None:
-                                            subTable = (stable,sidx,srow)
-                                if subTable:
-                                    dlist.append(subTable)
-                            else:
-                                if row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
-                                    dlist.append((table, idx, row))
+                            subTables = row.findall('.//{%(w)s}tbl' % NAMESPACES)
+                            
+                            for stable in subTables:
+                                subTable = (table,idx,row)
+                                for sidx,srow in enumerate(stable):
+                                    # 如果还有field，就保留
+                                    if srow.find('.//MergeField[@name="%s"]' % field) is not None:
+                                        subTable = (stable,sidx,srow)
+                            if subTable:
+                                dlist.append(subTable)
+                            # else:
+                            #     if row.find('.//{%(w)s}tbl' % NAMESPACES) is None:
+                            #         dlist.append((table, idx, row))
             if(len(dlist) > 0):
                 # print(len(dlist))
                 return dlist
